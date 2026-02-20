@@ -1,0 +1,106 @@
+name: "Open Plan Redesign"
+context_file: "./output/CONTEXT.md"
+output_dir: "./output"
+
+default_provider: anthropic
+default_model: claude-sonnet-4-6
+
+# Merge agent runs after all tasks complete
+merge_prompt: |
+  Synthesize all agent outputs into a single final blueprint.
+  Resolve any conflicts. Produce a definitive file tree, build order,
+  and effort estimate. This should be concrete enough to start building tomorrow.
+merge_provider: anthropic
+merge_model: claude-sonnet-4-6
+
+tasks:
+  # Layer 0 — Leaves (no dependencies, run in parallel)
+  - id: router
+    prompt: |
+      Design the router for a modular financial planning AI system.
+      The router is the ONLY file the AI reads at session start.
+      It must: assess user level (0-3), pick the next module to load,
+      read/update state, and handle returning users.
+      Write the actual document, not a design spec. 2-3 pages max.
+    provider: anthropic
+    model: claude-sonnet-4-6
+    read_files:
+      - ~/repos/open-plan/references/OPEN_PLAN.md
+    output_file: router.md
+
+  - id: module-template
+    prompt: |
+      Design the module template for a modular financial planning system.
+      Every topic module must follow this template exactly.
+      Include: header, inputs, quick assessment, core analysis,
+      output format, red flags, completion signal, handoff, level scaling.
+      Write the template, then write one example (Spending) to prove it works.
+    provider: openai
+    model: gpt-5.2
+    read_files:
+      - ~/repos/open-plan/references/OPEN_PLAN.md
+    output_file: module-template.md
+
+  - id: state-schema
+    prompt: |
+      Design the state schema (profile.json) for a modular financial planning system.
+      Must track: user profile, data inventory, module status,
+      action items, financial snapshot, session log.
+      Write the schema as actual JSON with realistic example values.
+    provider: openai
+    model: gpt-5.2
+    output_file: state-schema.md
+
+  - id: data-ladder
+    prompt: |
+      Design a progressive data gathering system for financial planning.
+      6 levels from verbal answers (0 min) to Plaid automation.
+      For each level: exact data requested, time to gather,
+      what analysis unlocks, the specific "win" that justifies the effort.
+    provider: anthropic
+    model: claude-sonnet-4-6
+    output_file: data-ladder.md
+
+  - id: content-audit
+    prompt: |
+      Audit the current financial planning playbook and produce a module manifest.
+      For each module: filename, source content, status (exists/rewrite/new),
+      priority (core/standard/advanced), dependencies, effort estimate.
+      Also: what to delete, what to move, optimal loading order.
+    provider: openai
+    model: gpt-5.2
+    read_files:
+      - ~/repos/open-plan/references/OPEN_PLAN.md
+    output_file: content-manifest.md
+
+  - id: ai-instructions
+    prompt: |
+      Design the AI instruction set for a financial planning system.
+      Three sections: (1) Behavior & Safety, (2) Conversation Mechanics,
+      (3) Routing Rules with explicit decision tree.
+      Write the actual instructions, not a design doc.
+    provider: anthropic
+    model: claude-sonnet-4-6
+    output_file: ai-instructions.md
+
+  # Layer 1 — Synthesis (depends on leaves)
+  - id: system-architecture
+    prompt: |
+      Combine router, module template, and state schema into one coherent
+      system architecture. Resolve conflicts. Ensure the router's module-loading
+      logic matches the module template's completion signals. Produce a unified
+      file structure and integration spec.
+    provider: google
+    model: gemini-3-pro-preview
+    depends_on: [router, module-template, state-schema]
+    output_file: system-architecture.md
+
+  - id: content-plan
+    prompt: |
+      Combine data ladder, content manifest, and AI instructions into one
+      coherent content plan. Map data levels to modules. Produce the definitive
+      module list. Define the minimum viable set for v1.
+    provider: anthropic
+    model: claude-sonnet-4-6
+    depends_on: [data-ladder, content-audit, ai-instructions]
+    output_file: content-plan.md
