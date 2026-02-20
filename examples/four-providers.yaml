@@ -1,0 +1,38 @@
+name: "4-Provider Test"
+output_dir: "./output/four-test"
+
+tasks:
+  - id: openai
+    prompt: "In one sentence, what is the capital of France?"
+    provider: openai
+    model: gpt-5.2
+    output_file: openai.md
+
+  - id: google
+    prompt: "In one sentence, what is the capital of Germany?"
+    provider: google
+    model: gemini-3-pro-preview
+    output_file: google.md
+
+  - id: xai
+    prompt: "In one sentence, what is the capital of Japan?"
+    provider: xai
+    model: grok-4-1-fast-non-reasoning
+    output_file: xai.md
+
+  - id: xai-reasoning
+    prompt: "In one sentence, what is the capital of Australia?"
+    provider: xai
+    model: grok-4-1-fast-reasoning
+    output_file: xai-reasoning.md
+
+  - id: synthesis
+    prompt: "Combine all four answers into one paragraph. Note which provider answered each."
+    depends_on: [openai, google, xai, xai-reasoning]
+    provider: xai
+    model: grok-4-1-fast-reasoning
+    output_file: synthesis.md
+
+merge_prompt: "Verify all four capitals are correct. One-line summary."
+merge_provider: openai
+merge_model: gpt-5.2
