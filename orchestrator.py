@@ -80,10 +80,32 @@ class GoogleProvider(Provider):
         return response.text
 
 
+class XAIProvider(Provider):
+    """xAI Grok models via OpenAI-compatible API."""
+    def __init__(self):
+        from openai import AsyncOpenAI
+        self.client = AsyncOpenAI(
+            api_key=os.environ.get("XAI_API_KEY", ""),
+            base_url="https://api.x.ai/v1",
+        )
+
+    async def complete(self, system: str, prompt: str, model: str) -> str:
+        response = await self.client.chat.completions.create(
+            model=model,
+            max_completion_tokens=8192,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": prompt},
+            ],
+        )
+        return response.choices[0].message.content
+
+
 PROVIDERS = {
     "anthropic": AnthropicProvider,
     "openai": OpenAIProvider,
     "google": GoogleProvider,
+    "xai": XAIProvider,
 }
 
 def get_provider(name: str) -> Provider:
