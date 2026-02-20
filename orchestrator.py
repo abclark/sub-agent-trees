@@ -54,7 +54,7 @@ class OpenAIProvider(Provider):
     async def complete(self, system: str, prompt: str, model: str) -> str:
         response = await self.client.chat.completions.create(
             model=model,
-            max_tokens=8192,
+            max_completion_tokens=8192,
             messages=[
                 {"role": "system", "content": system},
                 {"role": "user", "content": prompt},

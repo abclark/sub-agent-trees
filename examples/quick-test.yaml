@@ -1,0 +1,32 @@
+name: "Quick Test — 3 Providers"
+output_dir: "./output/test"
+
+tasks:
+  - id: openai-test
+    prompt: "In one sentence, what is the capital of France? Reply with just the sentence."
+    provider: openai
+    model: gpt-5.2
+    output_file: openai.md
+
+  - id: google-test
+    prompt: "In one sentence, what is the capital of Germany? Reply with just the sentence."
+    provider: google
+    model: gemini-3-pro-preview
+    output_file: google.md
+
+  - id: google-flash-test
+    prompt: "In one sentence, what is the capital of Japan? Reply with just the sentence."
+    provider: google
+    model: gemini-2.0-flash
+    output_file: flash.md
+
+  - id: synthesis
+    prompt: "Combine the three answers into a single paragraph."
+    depends_on: [openai-test, google-test, google-flash-test]
+    provider: openai
+    model: gpt-5.2
+    output_file: synthesis.md
+
+merge_prompt: "Confirm all three capitals are correct and write a one-line summary."
+merge_provider: google
+merge_model: gemini-3-pro-preview
