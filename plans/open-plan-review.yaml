@@ -1,0 +1,121 @@
+name: "Open Plan v1 — Multi-Model Review"
+context_file: "./output/open-plan-review/CONTEXT.md"
+output_dir: "./output/open-plan-review"
+
+tasks:
+  - id: review-gpt
+    prompt: |
+      You are a senior financial planner and software architect reviewing Open Plan v1 — a modular AI-powered financial planning system.
+      
+      Review ALL 24 files. For each issue you find, classify it:
+      - **CRITICAL**: Will cause incorrect financial advice, broken routing, or user confusion
+      - **MAJOR**: Significant quality gap, missing content, or inconsistency
+      - **MINOR**: Style, formatting, or nice-to-have improvement
+      
+      Check specifically for:
+      1. **Financial accuracy**: Are tax rules, contribution limits, formulas correct?
+      2. **Routing logic**: Does the router cover all cases? Any dead ends?
+      3. **Module consistency**: Do all modules follow the template? Do completion signals match?
+      4. **User experience**: Would a real person find this helpful? Where would they get stuck?
+      5. **Gaps**: What financial topics are missing or underdeveloped?
+      6. **Redundancy**: Do any modules repeat each other?
+      7. **Tone**: Is it consistent? Accessible? Not condescending?
+      
+      Be specific. Quote the problematic text. Suggest the fix.
+      
+      End with a 1-10 score for overall v1 readiness.
+    provider: openai
+    model: gpt-5.2
+    read_files:
+      - ~/repos/sub-agent-trees/output/open-plan/ALL-MODULES.md
+    output_file: review-gpt.md
+
+  - id: review-grok
+    prompt: |
+      You are a senior financial planner and software architect reviewing Open Plan v1 — a modular AI-powered financial planning system.
+      
+      Review ALL 24 files. For each issue you find, classify it:
+      - **CRITICAL**: Will cause incorrect financial advice, broken routing, or user confusion
+      - **MAJOR**: Significant quality gap, missing content, or inconsistency
+      - **MINOR**: Style, formatting, or nice-to-have improvement
+      
+      Check specifically for:
+      1. **Financial accuracy**: Are tax rules, contribution limits, formulas correct?
+      2. **Routing logic**: Does the router cover all cases? Any dead ends?
+      3. **Module consistency**: Do all modules follow the template? Do completion signals match?
+      4. **User experience**: Would a real person find this helpful? Where would they get stuck?
+      5. **Gaps**: What financial topics are missing or underdeveloped?
+      6. **Redundancy**: Do any modules repeat each other?
+      7. **Tone**: Is it consistent? Accessible? Not condescending?
+      
+      Be specific. Quote the problematic text. Suggest the fix.
+      
+      End with a 1-10 score for overall v1 readiness.
+    provider: xai
+    model: grok-4-1-fast-reasoning
+    read_files:
+      - ~/repos/sub-agent-trees/output/open-plan/ALL-MODULES.md
+    output_file: review-grok.md
+
+  - id: review-gemini
+    prompt: |
+      You are a senior financial planner and software architect reviewing Open Plan v1 — a modular AI-powered financial planning system.
+      
+      Review ALL 24 files. For each issue you find, classify it:
+      - **CRITICAL**: Will cause incorrect financial advice, broken routing, or user confusion
+      - **MAJOR**: Significant quality gap, missing content, or inconsistency
+      - **MINOR**: Style, formatting, or nice-to-have improvement
+      
+      Check specifically for:
+      1. **Financial accuracy**: Are tax rules, contribution limits, formulas correct?
+      2. **Routing logic**: Does the router cover all cases? Any dead ends?
+      3. **Module consistency**: Do all modules follow the template? Do completion signals match?
+      4. **User experience**: Would a real person find this helpful? Where would they get stuck?
+      5. **Gaps**: What financial topics are missing or underdeveloped?
+      6. **Redundancy**: Do any modules repeat each other?
+      7. **Tone**: Is it consistent? Accessible? Not condescending?
+      
+      Be specific. Quote the problematic text. Suggest the fix.
+      
+      End with a 1-10 score for overall v1 readiness.
+    provider: google
+    model: gemini-3-pro-preview
+    read_files:
+      - ~/repos/sub-agent-trees/output/open-plan/ALL-MODULES.md
+    output_file: review-gemini.md
+
+  - id: reconcile
+    prompt: |
+      You have three independent reviews of the same financial planning system (Open Plan v1), each from a different AI model. Your job is to produce the DEFINITIVE fix list.
+      
+      Rules:
+      1. **Consensus filter**: Only include issues flagged by 2 or more reviewers. Single-reviewer issues go in a separate "disputed" section.
+      2. **Rank by impact**: CRITICAL first, then MAJOR, then MINOR.
+      3. **Be actionable**: For each issue, specify: which file, what's wrong, exact fix.
+      4. **Resolve conflicts**: If reviewers disagree on the fix, pick the best one and explain why.
+      5. **Score**: Average the three readiness scores. State whether v1 is ready to ship.
+      
+      Output format:
+      
+      ## Consensus Issues (2+ reviewers agree)
+      ### CRITICAL
+      ### MAJOR  
+      ### MINOR
+      
+      ## Disputed Issues (single reviewer only)
+      
+      ## Scores
+      - GPT-5.2: X/10
+      - Grok: X/10
+      - Gemini: X/10
+      - Average: X/10
+      - **Ship decision**: YES / NO / YES WITH FIXES
+    provider: openai
+    model: gpt-5.2
+    depends_on: [review-gpt, review-grok, review-gemini]
+    output_file: RECONCILED-REVIEW.md
+
+merge_prompt: |
+  Read the reconciled review. List ONLY the CRITICAL and MAJOR consensus fixes as a numbered checklist. If the ship decision is YES or YES WITH FIXES, say so. Keep it under 30 lines.
+merge_provider: openai
+merge_model: gpt-5.2

@@ -1,0 +1,125 @@
+name: "Open Plan PII Audit — Multi-Model Deep Dive"
+context_file: "./output/pii-audit/CONTEXT.md"
+output_dir: "./output/pii-audit"
+
+tasks:
+  - id: audit-gpt
+    prompt: |
+      You are a security auditor performing a PII (Personally Identifiable Information) deep dive on a software repository that is about to be made PUBLIC on GitHub.
+      
+      Read EVERY file carefully. Search for ANY of the following:
+      
+      1. **Names** — real people's names (first, last, full), nicknames, usernames
+      2. **Email addresses** — any @domain
+      3. **Phone numbers** — any format
+      4. **Physical addresses** — street, city, zip
+      5. **Financial data** — account numbers, balances, specific dollar amounts that could identify someone, SSNs, EINs, tax IDs
+      6. **API keys, tokens, secrets** — anything that looks like a credential
+      7. **Employer names** — specific company names tied to a real person's employment
+      8. **Dates tied to individuals** — birthdates, hire dates, specific transaction dates
+      9. **Device identifiers** — MAC addresses, serial numbers, device names
+      10. **IP addresses** — specific IPs
+      11. **URLs with usernames** — GitHub profiles, LinkedIn, personal websites
+      12. **Implicit PII** — combinations of data that could identify someone even if no single field is PII (e.g., "Senior DS at a major tech company in SF making $470k" is identifiable)
+      
+      For EACH finding:
+      - Quote the exact text
+      - State the file and approximate location
+      - Classify: CRITICAL (must remove before public), WARNING (borderline), or OK (generic/sample)
+      
+      Be paranoid. False positives are better than missed PII.
+      
+      End with a summary: SAFE TO PUBLISH / NOT SAFE — with the count of CRITICAL and WARNING items.
+    provider: openai
+    model: gpt-5.2
+    read_files:
+      - /tmp/open-plan-all-files.md
+    output_file: audit-gpt.md
+
+  - id: audit-grok
+    prompt: |
+      You are a security auditor performing a PII (Personally Identifiable Information) deep dive on a software repository that is about to be made PUBLIC on GitHub.
+      
+      Read EVERY file carefully. Search for ANY of the following:
+      
+      1. **Names** — real people's names (first, last, full), nicknames, usernames
+      2. **Email addresses** — any @domain
+      3. **Phone numbers** — any format
+      4. **Physical addresses** — street, city, zip
+      5. **Financial data** — account numbers, balances, specific dollar amounts that could identify someone, SSNs, EINs, tax IDs
+      6. **API keys, tokens, secrets** — anything that looks like a credential
+      7. **Employer names** — specific company names tied to a real person's employment
+      8. **Dates tied to individuals** — birthdates, hire dates, specific transaction dates
+      9. **Device identifiers** — MAC addresses, serial numbers, device names
+      10. **IP addresses** — specific IPs
+      11. **URLs with usernames** — GitHub profiles, LinkedIn, personal websites
+      12. **Implicit PII** — combinations of data that could identify someone even if no single field is PII
+      
+      For EACH finding:
+      - Quote the exact text
+      - State the file and approximate location
+      - Classify: CRITICAL (must remove before public), WARNING (borderline), or OK (generic/sample)
+      
+      Be paranoid. False positives are better than missed PII.
+      
+      End with a summary: SAFE TO PUBLISH / NOT SAFE — with the count of CRITICAL and WARNING items.
+    provider: xai
+    model: grok-4-1-fast-reasoning
+    read_files:
+      - /tmp/open-plan-all-files.md
+    output_file: audit-grok.md
+
+  - id: audit-gemini
+    prompt: |
+      You are a security auditor performing a PII (Personally Identifiable Information) deep dive on a software repository that is about to be made PUBLIC on GitHub.
+      
+      Read EVERY file carefully. Search for ANY of the following:
+      
+      1. **Names** — real people's names (first, last, full), nicknames, usernames
+      2. **Email addresses** — any @domain
+      3. **Phone numbers** — any format
+      4. **Physical addresses** — street, city, zip
+      5. **Financial data** — account numbers, balances, specific dollar amounts that could identify someone, SSNs, EINs, tax IDs
+      6. **API keys, tokens, secrets** — anything that looks like a credential
+      7. **Employer names** — specific company names tied to a real person's employment
+      8. **Dates tied to individuals** — birthdates, hire dates, specific transaction dates
+      9. **Device identifiers** — MAC addresses, serial numbers, device names
+      10. **IP addresses** — specific IPs
+      11. **URLs with usernames** — GitHub profiles, LinkedIn, personal websites
+      12. **Implicit PII** — combinations of data that could identify someone even if no single field is PII
+      
+      For EACH finding:
+      - Quote the exact text
+      - State the file and approximate location
+      - Classify: CRITICAL (must remove before public), WARNING (borderline), or OK (generic/sample)
+      
+      Be paranoid. False positives are better than missed PII.
+      
+      End with a summary: SAFE TO PUBLISH / NOT SAFE — with the count of CRITICAL and WARNING items.
+    provider: google
+    model: gemini-3-pro-preview
+    read_files:
+      - /tmp/open-plan-all-files.md
+    output_file: audit-gemini.md
+
+  - id: reconcile
+    prompt: |
+      You have three independent PII audit reports of the same repository. Reconcile them.
+      
+      1. List ALL findings classified as CRITICAL by ANY reviewer — these must be resolved before publishing.
+      2. List all WARNING findings flagged by 2+ reviewers.
+      3. If all three say SAFE TO PUBLISH, confirm it.
+      4. If ANY says NOT SAFE, list exactly what must be fixed.
+      
+      Be conservative. One reviewer finding a real PII issue is enough to block publication.
+      
+      Output: SAFE TO PUBLISH or NOT SAFE with the exact fixes needed.
+    provider: openai
+    model: gpt-5.2
+    depends_on: [audit-gpt, audit-grok, audit-gemini]
+    output_file: RECONCILED-PII-AUDIT.md
+
+merge_prompt: |
+  One line: SAFE or NOT SAFE. If not safe, list the files and issues in 5 words each.
+merge_provider: openai
+merge_model: gpt-5.2

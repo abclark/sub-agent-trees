@@ -1,0 +1,426 @@
+name: "Open Plan v1 — Build All Modules"
+context_file: "./output/open-plan/CONTEXT.md"
+output_dir: "./output/open-plan"
+
+# Layer 0: System files (router must come first, everything depends on it)
+tasks:
+  - id: router
+    prompt: |
+      You are building the ROUTER for Open Plan, a modular AI-powered financial planning system.
+      
+      Read the blueprint, the draft router design, and the AI instructions. Produce the FINAL router.md file.
+      
+      This is the ONLY file the AI reads at session start. It must include:
+      1. Intake questions (5-6, no files needed) to determine user level (0-3) and data level (0-5)
+      2. Routing decision tree with explicit if/then logic and priority overrides
+      3. Module loading instructions (read ONLY router + one module at a time)
+      4. State management (read/update profile.json)
+      5. Returning user flow
+      6. AI behavior rules: tone, privacy, uncertainty protocol, output format
+      7. Data ladder upgrade prompts
+      
+      The router should be 3-4 pages max. It must be a working document, not a design spec.
+      Reference modules by their path: modules/audit/spending.md, modules/fix/cash-and-debt.md, etc.
+    provider: openai
+    model: gpt-5.2
+    read_files:
+      - ~/repos/open-plan/drafts/final-blueprint.md
+      - ~/repos/open-plan/drafts/router.md
+      - ~/repos/open-plan/drafts/ai-instructions.md
+    output_file: system/router.md
+
+  - id: state-schema
+    prompt: |
+      Build the state schema documentation for Open Plan. This defines profile.json — the file that tracks everything about the user between sessions.
+      
+      Read the blueprint and draft state schema. Produce the FINAL state-schema.md.
+      
+      Include: full JSON schema with example values, update rules (append vs overwrite), first-session defaults, size constraints, conflict resolution.
+      
+      Two separate axes: data_level (0-5, what data shared) and level (0-3, financial maturity).
+    provider: xai
+    model: grok-4-1-fast-reasoning
+    read_files:
+      - ~/repos/open-plan/drafts/final-blueprint.md
+      - ~/repos/open-plan/drafts/state-schema.md
+    output_file: system/state-schema.md
+
+  - id: module-template
+    prompt: |
+      Build the module template for Open Plan. Every content module must follow this template exactly.
+      
+      Read the blueprint and draft template. Produce the FINAL module-template.md.
+      
+      Sections in order: Header (name, prerequisites, level, time), Inputs Needed, Quick Assessment, Core Analysis, Output Format, Red Flags, Completion Signal (JSON block), Handoff, Level Scaling.
+    provider: xai
+    model: grok-4-1-fast-reasoning
+    read_files:
+      - ~/repos/open-plan/drafts/final-blueprint.md
+      - ~/repos/open-plan/drafts/module-template.md
+    output_file: system/module-template.md
+
+  - id: philosophy
+    prompt: |
+      Write philosophy.md for Open Plan — the design philosophy loaded as system context.
+      
+      6 core principles from the original document: fix present before planning future, budget is output not input, each dollar decides for itself, free money first, start anywhere go deeper, the goal is peace of mind.
+      
+      Keep it to 1 page. These are loaded as background context for the AI, not shown to users.
+    provider: xai
+    model: grok-4-1-fast-non-reasoning
+    read_files:
+      - ~/repos/open-plan/references/OPEN_PLAN.md
+    output_file: system/philosophy.md
+
+  - id: principles
+    prompt: |
+      Write principles.md for Open Plan — the governing principles loaded as system context.
+      
+      Extract and clean up the 10 principles from the original OPEN_PLAN.md. Fix numbering errors. Remove absolutist language. Add the disclaimer principle up front.
+      
+      Keep to 1 page.
+    provider: xai
+    model: grok-4-1-fast-non-reasoning
+    read_files:
+      - ~/repos/open-plan/references/OPEN_PLAN.md
+    output_file: system/principles.md
+
+  - id: glossary
+    prompt: |
+      Write glossary.md for Open Plan — terms, assumptions, and disclaimers loaded as system context.
+      
+      Include: key financial terms used across modules (marginal rate, tax drag, concentration risk, etc.), standing assumptions (US tax system, employed W-2 worker), and the "not financial advice" disclaimer.
+      
+      Keep to 1-2 pages.
+    provider: xai
+    model: grok-4-1-fast-non-reasoning
+    read_files:
+      - ~/repos/open-plan/references/OPEN_PLAN.md
+    output_file: system/glossary.md
+
+  # Layer 0: Modules (all can run in parallel, they just need the template concept)
+  - id: quick-start
+    prompt: |
+      Write the quick-start.md module for Open Plan. This is the L0 onboarding — the very first interaction.
+      
+      Follow the module template format. This module:
+      1. Asks 5-6 conversational questions (income, spending, savings, debt, age, 401k match)
+      2. Produces a rough savings waterfall from verbal answers alone
+      3. Delivers the "first win" — one actionable insight with no files needed
+      4. Teases what more data would unlock
+      
+      Read the data ladder for the L0 design. Read the original Ch 0 for existing content.
+      
+      This is the most important module for adoption. It must deliver value in 5 minutes with zero files.
+    provider: openai
+    model: gpt-5.2
+    read_files:
+      - ~/repos/open-plan/drafts/final-blueprint.md
+      - ~/repos/open-plan/drafts/data-ladder.md
+      - ~/repos/open-plan/drafts/module-template.md
+      - ~/repos/open-plan/references/OPEN_PLAN.md
+    output_file: modules/data/quick-start.md
+
+  - id: spending
+    prompt: |
+      Write the spending.md module for Open Plan. This covers spending categories, subscriptions, waste, and fraud detection (merged from original Ch 1 + Ch 4).
+      
+      Follow the module template format exactly. Include:
+      - Category breakdown (housing, transport, food, subscriptions, discretionary)
+      - Subscription inventory and zombie detection
+      - Fraud/duplicate/interest charge flags
+      - Month-over-month trend analysis
+      - Level scaling: L1 (verbal) through L3 (full CSV)
+      
+      This is the most common entry point after quick-start.
+    provider: openai
+    model: gpt-5.2
+    read_files:
+      - ~/repos/open-plan/drafts/final-blueprint.md
+      - ~/repos/open-plan/drafts/module-template.md
+      - ~/repos/open-plan/references/OPEN_PLAN.md
+    output_file: modules/audit/spending.md
+
+  - id: income
+    prompt: |
+      Write the income.md module for Open Plan. Covers income breakdown, tax rates, pay stub analysis.
+      
+      Follow the module template format. Include:
+      - Gross vs net income reconciliation
+      - Marginal and effective tax rate calculation
+      - Income source breakdown (salary, bonus, RSU vesting, dividends)
+      - Payroll deduction analysis (401k, insurance, taxes)
+      - W-2 vs pay stub cross-check
+      - Level scaling: L1 (verbal salary) through L4 (W-2/tax return)
+    provider: google
+    model: gemini-3-pro-preview
+    read_files:
+      - ~/repos/open-plan/drafts/final-blueprint.md
+      - ~/repos/open-plan/drafts/module-template.md
+      - ~/repos/open-plan/references/OPEN_PLAN.md
+    output_file: modules/audit/income.md
+
+  - id: net-worth
+    prompt: |
+      Write the net-worth.md module for Open Plan. Covers balance sheet, tax-adjusted net worth, debt schedule.
+      
+      Follow the module template format. Include:
+      - Asset inventory (cash, retirement, brokerage, real estate, crypto, options)
+      - Liability inventory (mortgage, student loans, CC debt, auto loans)
+      - Tax-adjusted net worth calculation (pre-tax accounts discounted by expected tax rate)
+      - Concentration risk flags (single stock > 15%)
+      - Net worth trend tracking
+      - Level scaling: L1 (verbal estimates) through L5 (connected accounts)
+    provider: google
+    model: gemini-3-pro-preview
+    read_files:
+      - ~/repos/open-plan/drafts/final-blueprint.md
+      - ~/repos/open-plan/drafts/module-template.md
+      - ~/repos/open-plan/references/OPEN_PLAN.md
+    output_file: modules/audit/net-worth.md
+
+  - id: cash-and-debt
+    prompt: |
+      Write the cash-and-debt.md module for Open Plan. Covers emergency fund, debt payoff, cash allocation.
+      
+      Follow the module template format. Include:
+      - Emergency fund sizing (months of essential spending)
+      - Debt inventory with rates and minimums
+      - Avalanche vs snowball comparison (always recommend avalanche, show the math)
+      - Cash allocation: checking vs savings vs money market
+      - CC auto-pay verification
+      - Red flag: any credit card interest = urgent
+      - Level scaling
+    provider: xai
+    model: grok-4-1-fast-reasoning
+    read_files:
+      - ~/repos/open-plan/drafts/final-blueprint.md
+      - ~/repos/open-plan/drafts/module-template.md
+      - ~/repos/open-plan/references/OPEN_PLAN.md
+    output_file: modules/fix/cash-and-debt.md
+
+  - id: tax-leaks
+    prompt: |
+      Write the tax-leaks.md module for Open Plan. Covers withholding gaps, RSU under-withholding, estimated payments.
+      
+      Follow the module template format. Include:
+      - W-4 analysis (current withholding vs actual liability)
+      - RSU supplemental withholding gap (22% flat vs actual marginal rate)
+      - Bonus withholding analysis
+      - Estimated tax payment schedule
+      - Safe harbor rules
+      - State tax considerations
+      - Red flag: owing > $1,000 at filing = withholding problem
+      - Level scaling: needs at least a pay stub (L3)
+    provider: openai
+    model: gpt-5.2
+    read_files:
+      - ~/repos/open-plan/drafts/final-blueprint.md
+      - ~/repos/open-plan/drafts/module-template.md
+      - ~/repos/open-plan/references/OPEN_PLAN.md
+    output_file: modules/fix/tax-leaks.md
+
+  - id: benefits
+    prompt: |
+      Write the benefits.md module for Open Plan. Covers 401k match, HSA, ESPP, education reimbursement.
+      
+      Follow the module template format. Include:
+      - 401k match calculation (is user capturing full match?)
+      - HSA eligibility and triple tax advantage
+      - ESPP discount analysis (typically 15% — free money)
+      - Education/training reimbursement
+      - Other benefits: commuter, wellness, legal
+      - Red flag: not getting full 401k match = leaving money on table
+    provider: xai
+    model: grok-4-1-fast-reasoning
+    read_files:
+      - ~/repos/open-plan/drafts/final-blueprint.md
+      - ~/repos/open-plan/drafts/module-template.md
+      - ~/repos/open-plan/references/OPEN_PLAN.md
+    output_file: modules/fix/benefits.md
+
+  - id: retirement-accounts
+    prompt: |
+      Write the retirement-accounts.md module for Open Plan. Covers pre-tax vs Roth, mega backdoor, contribution space.
+      
+      Follow the module template format. Include:
+      - Pre-tax vs Roth decision framework (the one-inequality proof: τ_n > τ_f)
+      - Current year contribution limits
+      - Mega backdoor Roth mechanics (after-tax 401k → Roth IRA)
+      - Backdoor Roth IRA (traditional → Roth conversion)
+      - Pro-rata rule warning
+      - Catch-up contributions
+      - State tax arbitrage (high-tax state now, retire to no-tax state)
+      - Red flag: not maxing employer match, leaving Roth conversion money on table
+      
+      This is one of the most important modules. The math must be correct and clearly explained.
+    provider: openai
+    model: gpt-5.2
+    read_files:
+      - ~/repos/open-plan/drafts/final-blueprint.md
+      - ~/repos/open-plan/drafts/module-template.md
+      - ~/repos/open-plan/references/OPEN_PLAN.md
+    output_file: modules/optimize/retirement-accounts.md
+
+  - id: portfolio
+    prompt: |
+      Write the portfolio.md module for Open Plan. Covers asset allocation, concentration, tax location, fees.
+      
+      Follow the module template format. Include:
+      - Current allocation vs target (age-based, risk-based)
+      - Single-stock concentration risk (flag > 15% in one position)
+      - Tax location optimization (which assets in which account type)
+      - Fee analysis (expense ratios, advisory fees)
+      - Rebalancing triggers
+      - Level scaling
+    provider: google
+    model: gemini-3-pro-preview
+    read_files:
+      - ~/repos/open-plan/drafts/final-blueprint.md
+      - ~/repos/open-plan/drafts/module-template.md
+      - ~/repos/open-plan/references/OPEN_PLAN.md
+    output_file: modules/optimize/portfolio.md
+
+  - id: equity-comp
+    prompt: |
+      Write the equity-comp.md module for Open Plan. Covers RSUs, ISOs, NSOs, exercise/sell/hold decisions.
+      
+      Follow the module template format. Include:
+      - RSU taxation (ordinary income at vest, sold immediately = no additional gain)
+      - ISO vs NSO differences (AMT implications, holding periods)
+      - Exercise decision framework for NSOs (intrinsic value, time to expiry, lockup)
+      - Sell-to-cover vs same-day-sale vs hold
+      - Concentration risk from employer stock
+      - 83(b) election for early-stage grants
+      - Red flag: options expiring within 12 months, single-stock > 20% of net worth
+    provider: xai
+    model: grok-4-1-fast-reasoning
+    read_files:
+      - ~/repos/open-plan/drafts/final-blueprint.md
+      - ~/repos/open-plan/drafts/module-template.md
+      - ~/repos/open-plan/references/OPEN_PLAN.md
+    output_file: modules/optimize/equity-comp.md
+
+  - id: goals-and-budget
+    prompt: |
+      Write the goals-and-budget.md module for Open Plan. Merged from original Goals (Ch 12) + Budget (Ch 13).
+      
+      Follow the module template format. Include:
+      - Goal quantification framework (retirement number, house down payment, education, etc.)
+      - Backward budget: goals → required savings → spending ceiling (budget is OUTPUT not input)
+      - Scenario testing (what if retire at 55 vs 65, what if income drops 30%)
+      - Time-value calculations for each goal
+      - Priority stacking when goals conflict
+      - "When to stop" section — if you've done Tier 1 waterfall, you're ahead of 90%
+      - Level scaling
+    provider: openai
+    model: gpt-5.2
+    read_files:
+      - ~/repos/open-plan/drafts/final-blueprint.md
+      - ~/repos/open-plan/drafts/module-template.md
+      - ~/repos/open-plan/references/OPEN_PLAN.md
+    output_file: modules/plan/goals-and-budget.md
+
+  - id: savings-waterfall
+    prompt: |
+      Write the savings-waterfall.md module for Open Plan. The "just tell me what to do" destination.
+      
+      Follow the module template format. Include:
+      - Tier 1 (Standard): 1. Employer match 2. High-interest debt 3. Emergency fund (1 month) 4. Backdoor Roth IRA
+      - Tier 2 (High-earner): 5. Max pre-tax 401k 6. Mega backdoor Roth 7. HSA 8. Emergency fund (3-6 months) 9. Taxable investing
+      - Per-paycheck allocation table
+      - How to adjust when cash is tight
+      - Integration with goals module output
+      - This is the spine of the entire system — every other module feeds into it
+    provider: openai
+    model: gpt-5.2
+    read_files:
+      - ~/repos/open-plan/drafts/final-blueprint.md
+      - ~/repos/open-plan/drafts/module-template.md
+      - ~/repos/open-plan/references/OPEN_PLAN.md
+    output_file: modules/plan/savings-waterfall.md
+
+  - id: action-plan
+    prompt: |
+      Write the action-plan.md module for Open Plan. The session deliverable — ranked recommendations.
+      
+      Follow the module template format. Include:
+      - Action item register format: Action | Why | $ impact | Effort | Deadline | Status
+      - Ranking by dollar-impact per hour of effort
+      - Time horizons: this week, this month, this quarter
+      - Re-engagement hooks: "Before next session, grab [one specific file]"
+      - Quarterly review checklist
+      - Annual deep review triggers
+      - This module renders the accumulated action items from all other modules
+    provider: xai
+    model: grok-4-1-fast-reasoning
+    read_files:
+      - ~/repos/open-plan/drafts/final-blueprint.md
+      - ~/repos/open-plan/drafts/module-template.md
+      - ~/repos/open-plan/references/OPEN_PLAN.md
+    output_file: modules/act/action-plan.md
+
+  - id: career
+    prompt: |
+      Write the career-as-capital.md appendix for Open Plan. Demoted from core to appendix.
+      
+      Follow the module template format but mark as Appendix. Include:
+      - Human capital NPV concept
+      - Comp benchmarking framework
+      - Career is the dominant financial variable (not portfolio optimization)
+      - When to negotiate vs when to leave
+      - Note: this requires different inputs than financial data — treat as optional side module
+    provider: xai
+    model: grok-4-1-fast-non-reasoning
+    read_files:
+      - ~/repos/open-plan/drafts/final-blueprint.md
+      - ~/repos/open-plan/drafts/module-template.md
+      - ~/repos/open-plan/references/OPEN_PLAN.md
+    output_file: modules/appendix/career-as-capital.md
+
+  - id: readme
+    prompt: |
+      Write the README.md for the Open Plan repo.
+      
+      Read the blueprint for the full description. The README should cover:
+      1. What Open Plan is (one markdown file system that turns any AI into your financial planner)
+      2. Quick start (copy the system/ and modules/ folders, open with any AI, start talking)
+      3. How it works (router loads, assesses you, picks modules, builds action plan)
+      4. File structure overview
+      5. Privacy note (honest about cloud AI vs local)
+      6. Contributing
+      7. License (MIT)
+      
+      Keep it concise. Under 100 lines.
+    provider: xai
+    model: grok-4-1-fast-non-reasoning
+    read_files:
+      - ~/repos/open-plan/drafts/final-blueprint.md
+    output_file: README.md
+
+  # Layer 1: Integration test
+  - id: integration-check
+    prompt: |
+      You are the integration tester for Open Plan. Read the router and ALL modules produced by the build agents.
+      
+      Check:
+      1. Does every module follow the template format? (Header, Inputs, Quick Assessment, Core Analysis, Output Format, Red Flags, Completion Signal, Handoff, Level Scaling)
+      2. Does the router reference every module by correct path?
+      3. Do the completion signals match what the router expects?
+      4. Are there routing gaps? (situations where no module would be selected)
+      5. Are there content overlaps? (two modules covering the same topic)
+      6. Do the handoff suggestions create sensible flows?
+      7. Is the data ladder consistent? (each module's required data_level matches the data ladder)
+      
+      Produce a report: PASS items, FAIL items with specific fixes needed, and an overall v1 readiness assessment.
+    provider: openai
+    model: gpt-5.2
+    depends_on: [router, state-schema, module-template, philosophy, principles, glossary, quick-start, spending, income, net-worth, cash-and-debt, tax-leaks, benefits, retirement-accounts, portfolio, equity-comp, goals-and-budget, savings-waterfall, action-plan, career, readme]
+    output_file: INTEGRATION-REPORT.md
+
+merge_prompt: |
+  Read the integration report. If there are FAIL items, list the top 5 most critical fixes.
+  If all items PASS, write: "V1 READY — all modules pass integration checks."
+  Be specific about what needs fixing.
+merge_provider: openai
+merge_model: gpt-5.2

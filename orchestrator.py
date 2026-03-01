@@ -49,7 +49,7 @@ class AnthropicProvider(Provider):
 class OpenAIProvider(Provider):
     def __init__(self):
         from openai import AsyncOpenAI
-        self.client = AsyncOpenAI()
+        self.client = AsyncOpenAI(api_key=os.environ.get("OPENAI_API_KEY", ""))
 
     async def complete(self, system: str, prompt: str, model: str) -> str:
         response = await self.client.chat.completions.create(

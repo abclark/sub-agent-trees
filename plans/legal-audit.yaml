@@ -1,0 +1,101 @@
+name: "Open Plan Legal Liability Audit"
+context_file: "./output/legal-audit/CONTEXT.md"
+output_dir: "./output/legal-audit"
+
+tasks:
+  - id: legal-gpt
+    prompt: |
+      You are a legal analyst reviewing an open-source repository that is about to be made PUBLIC. The repo contains instructions that turn AI models into financial advisors. The author is a US resident (California) on an E-3 visa, not a licensed financial advisor, CPA, or attorney. He has an LLC (Wyoming) but is publishing this as an individual under MIT license.
+      
+      Review ALL files. Assess legal liability for:
+      
+      1. **Investment Advisers Act of 1940** — Does this constitute "investment advice" that requires SEC registration? Is there a publisher's exclusion?
+      2. **State-level financial advisor regulations** — California, other states?
+      3. **Tax advice liability** — The modules give specific tax guidance (withholding, Roth vs pre-tax, safe harbor). Could this create liability under Circular 230 or state CPA regulations?
+      4. **Fiduciary duty** — Could a user argue the author owes them a fiduciary duty?
+      5. **Negligence / malpractice** — If someone follows the advice and loses money, can they sue?
+      6. **Disclaimers** — Are the existing disclaimers sufficient? What's missing?
+      7. **MIT License** — Does the "AS IS" warranty disclaimer protect against financial advice claims?
+      8. **SEC no-action letters and precedent** — Any relevant guidance on AI-generated financial content?
+      9. **E-3 visa implications** — Does publishing free open-source software create any visa issues?
+      10. **CFPB / consumer protection** — Any exposure under consumer financial protection laws?
+      
+      For each area: rate risk as HIGH / MEDIUM / LOW, explain why, and recommend specific mitigations.
+      
+      End with: overall risk assessment and top 3 recommended actions.
+    provider: openai
+    model: gpt-5.2
+    read_files:
+      - /tmp/open-plan-all-files.md
+    output_file: legal-gpt.md
+
+  - id: legal-grok
+    prompt: |
+      You are a legal analyst reviewing an open-source repository that is about to be made PUBLIC. The repo contains instructions that turn AI models into financial advisors. The author is a US resident (California) on an E-3 visa, not a licensed financial advisor, CPA, or attorney. He has an LLC (Wyoming) but is publishing this as an individual under MIT license.
+      
+      Review ALL files. Assess legal liability for:
+      
+      1. **Investment Advisers Act of 1940** — Does this constitute "investment advice" requiring SEC registration?
+      2. **State financial advisor regulations** — California and other states
+      3. **Tax advice liability** — Circular 230, CPA regulations
+      4. **Fiduciary duty** — Could users claim one exists?
+      5. **Negligence / malpractice** — Liability if someone loses money following the guidance
+      6. **Disclaimers** — Are existing ones sufficient?
+      7. **MIT License** — Does AS IS protect against financial advice claims?
+      8. **E-3 visa** — Any issues with publishing free open-source?
+      9. **CFPB / consumer protection** — Any exposure?
+      
+      For each: HIGH / MEDIUM / LOW risk, explanation, and specific mitigation.
+      
+      End with: overall risk assessment and top 3 actions.
+    provider: xai
+    model: grok-4-1-fast-reasoning
+    read_files:
+      - /tmp/open-plan-all-files.md
+    output_file: legal-grok.md
+
+  - id: legal-gemini
+    prompt: |
+      You are a legal analyst reviewing an open-source repository that is about to be made PUBLIC. The repo contains instructions that turn AI models into financial advisors. The author is a US resident (California) on an E-3 visa, not a licensed financial advisor, CPA, or attorney. He has an LLC (Wyoming) but is publishing this as an individual under MIT license.
+      
+      Review ALL files. Assess legal liability for:
+      
+      1. **Investment Advisers Act of 1940** — Does this constitute "investment advice" requiring SEC registration?
+      2. **State financial advisor regulations** — California and other states
+      3. **Tax advice liability** — Circular 230, CPA regulations
+      4. **Fiduciary duty** — Could users claim one exists?
+      5. **Negligence / malpractice** — Liability if someone loses money
+      6. **Disclaimers** — Sufficient?
+      7. **MIT License** — Protection scope
+      8. **E-3 visa** — Issues with free open-source publishing?
+      9. **CFPB / consumer protection** — Exposure?
+      
+      For each: HIGH / MEDIUM / LOW risk, explanation, mitigation.
+      
+      End with: overall risk assessment and top 3 actions.
+    provider: google
+    model: gemini-3-pro-preview
+    read_files:
+      - /tmp/open-plan-all-files.md
+    output_file: legal-gemini.md
+
+  - id: reconcile
+    prompt: |
+      You have three independent legal liability assessments of the same open-source financial planning repository. Reconcile them.
+      
+      1. For each legal area, show the risk rating from all three reviewers.
+      2. Where they agree: state the consensus.
+      3. Where they disagree: explain the disagreement and pick the most conservative position.
+      4. Produce a FINAL risk matrix.
+      5. List the DEFINITIVE top 5 actions the author must take before publishing, ranked by risk reduction.
+      
+      Be conservative. Legal risk should be over-estimated, not under-estimated.
+    provider: openai
+    model: gpt-5.2
+    depends_on: [legal-gpt, legal-grok, legal-gemini]
+    output_file: RECONCILED-LEGAL-AUDIT.md
+
+merge_prompt: |
+  One paragraph: overall risk level (LOW/MEDIUM/HIGH) and the top 3 must-do actions before publishing. Keep it under 100 words.
+merge_provider: openai
+merge_model: gpt-5.2

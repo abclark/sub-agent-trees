@@ -1,0 +1,99 @@
+name: "Open Plan Article Refactor — Multi-Model"
+context_file: "./output/open-plan-article-refactor/CONTEXT.md"
+output_dir: "./output/open-plan-article-refactor"
+
+tasks:
+  - id: refactor-gpt
+    provider: openai
+    model: gpt-5.2
+    read_files: [/tmp/open-plan-article.md]
+    output_file: refactor-gpt.md
+    prompt: |
+      Refactor this blog post for clarity and punch.
+
+      Constraints:
+      - Short sentences. Active voice. No filler.
+      - No em dashes. Use commas, colons, or parentheses.
+      - Remove or soften any "financial advisor" holding-out language. Position it as an educational toolkit.
+      - Be honest about privacy: cloud models transmit data to providers.
+      - Keep the structure similar, but tighten.
+      - End with a crisp "Try it" section.
+
+      Output ONLY the revised markdown.
+
+  - id: refactor-grok
+    provider: xai
+    model: grok-4-1-fast-reasoning
+    read_files: [/tmp/open-plan-article.md]
+    output_file: refactor-grok.md
+    prompt: |
+      Rewrite the post to be more compelling and less legal-risky.
+
+      Requirements:
+      - Keep it readable. No marketing hype.
+      - Remove "financial planner" framing where it implies advice. Use "framework" or "toolkit".
+      - Add a short disclaimer paragraph near the end.
+      - Do not use em dashes.
+
+      Output ONLY the revised markdown.
+
+  - id: refactor-gemini
+    provider: google
+    model: gemini-3-pro-preview
+    read_files: [/tmp/open-plan-article.md]
+    output_file: refactor-gemini.md
+    prompt: |
+      Rewrite the post as a tighter essay.
+
+      Constraints:
+      - Orwell/Strunk&White vibe.
+      - No em dashes.
+      - Make the privacy section unambiguous.
+      - Remove any lines that could be construed as personalized financial advice.
+
+      Output ONLY the revised markdown.
+
+  - id: round2-gpt
+    provider: openai
+    model: gpt-5.2
+    depends_on: [refactor-gpt, refactor-grok, refactor-gemini]
+    output_file: round2-gpt.md
+    prompt: |
+      You have three rewrites of the same post. Produce a best-of merge.
+
+      Goals:
+      - Keep the best phrasing from all three.
+      - Reduce legal risk: avoid "advisor" positioning.
+      - Keep it short.
+
+      Output ONLY the merged markdown.
+
+  - id: round2-grok
+    provider: xai
+    model: grok-4-1-fast-reasoning
+    depends_on: [refactor-gpt, refactor-grok, refactor-gemini]
+    output_file: round2-grok.md
+    prompt: |
+      Merge the three rewrites into one final post.
+
+      Constraints:
+      - No em dashes.
+      - Include a disclaimer.
+      - Include a 3-step "how to use" near the top.
+
+      Output ONLY the merged markdown.
+
+  - id: round2-gemini
+    provider: google
+    model: gemini-3-pro-preview
+    depends_on: [refactor-gpt, refactor-grok, refactor-gemini]
+    output_file: round2-gemini.md
+    prompt: |
+      Merge the three rewrites into one improved post.
+
+      Constraints:
+      - No em dashes.
+      - Preserve the core story.
+      - Make the tech section shorter.
+
+      Output ONLY the merged markdown.

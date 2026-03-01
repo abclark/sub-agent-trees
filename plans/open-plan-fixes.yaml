@@ -1,0 +1,205 @@
+name: "Open Plan v1 — Apply Review Fixes"
+context_file: "./output/open-plan-fixes/CONTEXT.md"
+output_dir: "./output/open-plan-fixes"
+
+tasks:
+  # Fix 1: Centralized tax-year limits
+  - id: limits-json
+    prompt: |
+      Create a machine-readable limits file for Open Plan. This is the single source of truth for all tax-year-dependent numbers.
+      
+      Structure: JSON keyed by tax year. Include ALL limits referenced anywhere in the system:
+      - 401k employee deferral (pre-tax + Roth)
+      - 401k total annual additions (Section 415(c))
+      - 401k catch-up (age 50+)
+      - IRA contribution limit
+      - IRA catch-up
+      - Backdoor Roth IRA limit
+      - HSA self-only and family limits
+      - HSA catch-up (age 55+)
+      - OASDI wage base
+      - Medicare additional tax threshold (Single, MFJ)
+      - NIIT threshold (Single, MFJ)
+      - Standard deduction (Single, MFJ, HoH)
+      - Federal tax brackets (Single, MFJ)
+      - Long-term capital gains brackets
+      - 529 gift tax exclusion / superfunding
+      - Estate/gift tax exemption
+      - SECURE 2.0 529→Roth rollover lifetime cap
+      
+      Include tax years 2024, 2025, 2026 (use 2025 as default, note 2026 values as "projected" where not yet published).
+      
+      Output ONLY the JSON. No markdown wrapper.
+    provider: openai
+    model: gpt-5.2
+    output_file: system/limits.json
+
+  # Fix 2: Update all modules to reference limits.json instead of hardcoded values
+  - id: update-retirement
+    prompt: |
+      Read the retirement-accounts module and the limits.json file.
+      
+      Replace ALL hardcoded dollar amounts for contribution limits, catch-up limits, and annual addition limits with references to limits.json. Use the format: `[see limits.json: {key_name}]` for each replaced value.
+      
+      Add a note at the top: "Dollar limits in this module reference system/limits.json. Verify the tax year before giving exact contribution advice."
+      
+      Add a required early question: "Which tax year are we planning for? (default: current year)"
+      
+      Keep all other content unchanged. Output the FULL updated module.
+    provider: openai
+    model: gpt-5.2
+    depends_on: [limits-json]
+    read_files:
+      - ~/repos/sub-agent-trees/output/open-plan/modules/optimize/retirement-accounts.md
+    output_file: modules/optimize/retirement-accounts.md
+
+  - id: update-benefits
+    prompt: |
+      Read the benefits module and the limits.json file.
+      
+      Replace ALL hardcoded dollar amounts for 401k match limits, HSA limits, and IRA limits with references to limits.json. Use the format: `[see limits.json: {key_name}]`.
+      
+      Add a note at the top: "Dollar limits in this module reference system/limits.json."
+      
+      Keep all other content unchanged. Output the FULL updated module.
+    provider: xai
+    model: grok-4-1-fast-reasoning
+    depends_on: [limits-json]
+    read_files:
+      - ~/repos/sub-agent-trees/output/open-plan/modules/fix/benefits.md
+    output_file: modules/fix/benefits.md
+
+  - id: update-waterfall
+    prompt: |
+      Read the savings-waterfall module and the limits.json file.
+      
+      Replace ALL hardcoded dollar amounts for contribution limits with references to limits.json. Use the format: `[see limits.json: {key_name}]`.
+      
+      Add a note at the top: "Dollar limits in this module reference system/limits.json."
+      
+      Keep all other content unchanged. Output the FULL updated module.
+    provider: xai
+    model: grok-4-1-fast-reasoning
+    depends_on: [limits-json]
+    read_files:
+      - ~/repos/sub-agent-trees/output/open-plan/modules/plan/savings-waterfall.md
+    output_file: modules/plan/savings-waterfall.md
+
+  - id: update-income
+    prompt: |
+      Read the income module and the limits.json file.
+      
+      Replace hardcoded OASDI wage base and any other tax-year-dependent limits with references to limits.json. Use the format: `[see limits.json: {key_name}]`.
+      
+      Keep all other content unchanged. Output the FULL updated module.
+    provider: google
+    model: gemini-3-pro-preview
+    depends_on: [limits-json]
+    read_files:
+      - ~/repos/sub-agent-trees/output/open-plan/modules/audit/income.md
+    output_file: modules/audit/income.md
+
+  # Fix 3: Tighten safe-harbor logic in tax-leaks
+  - id: fix-tax-leaks
+    prompt: |
+      Read the tax-leaks module. Fix the safe-harbor section:
+      
+      1. Add REQUIRED INPUTS before safe-harbor calculation:
+         - Prior-year AGI
+         - Prior-year total federal tax (line 24 of Form 1040)
+         - Filing status
+         - Prior-year withholding/estimated payments
+      
+      2. Add explicit rule text:
+         - "If prior-year AGI > $150,000 (MFJ) or > $75,000 (Single/MFS): safe harbor = 110% of prior-year total tax."
+         - "If prior-year AGI ≤ those thresholds: safe harbor = 100% of prior-year total tax."
+         - "Alternative safe harbor: 90% of current-year tax liability (harder to compute in advance)."
+      
+      3. Add fallback: "If prior-year data is unavailable: recommend increasing W-4 withholding by $X/paycheck (conservative). Label safe-harbor status as CANNOT CONFIRM."
+      
+      4. Reference limits.json for any threshold amounts.
+      
+      Keep all other content unchanged. Output the FULL updated module.
+    provider: openai
+    model: gpt-5.2
+    depends_on: [limits-json]
+    read_files:
+      - ~/repos/sub-agent-trees/output/open-plan/modules/fix/tax-leaks.md
+    output_file: modules/fix/tax-leaks.md
+
+  # Fix 4: De-route placeholder modules from router
+  - id: fix-router
+    prompt: |
+      Read the current router. Make these changes:
+      
+      1. Remove or comment out routes to these modules (they are v2 placeholders, not ready for v1):
+         - modules/data/importing.md
+         - modules/plan/account-strategy.md
+         - modules/plan/education.md
+      
+      2. Remove these modules from any next_modules suggestions in the routing table.
+      
+      3. Add a comment: "# V2 MODULES (not routed in v1): importing, account-strategy, education"
+      
+      4. Add prerequisite enforcement logic:
+         Before loading any module, the AI must:
+         a. Read the module's `modules_required` list
+         b. Check against `profile.modules.completed`
+         c. If prerequisites missing: tell user which modules to run first, OR explicitly proceed with "preliminary" label
+      
+      5. Add a "tax_year" question to the intake flow (defaults to current year).
+      
+      Keep all other routing logic unchanged. Output the FULL updated router.
+    provider: openai
+    model: gpt-5.2
+    read_files:
+      - ~/repos/sub-agent-trees/output/open-plan/system/router.md
+    output_file: system/router.md
+
+  # Fix 5: Fix completion signals in placeholder modules
+  - id: fix-placeholders
+    prompt: |
+      Read these three placeholder modules. Fix their completion signal JSON blocks to use the canonical wrapper format used by all other modules.
+      
+      The canonical format wraps everything in an "open_plan" key:
+      ```json
+      {"open_plan": {"module_id": "...", "module_done": true, "artifacts_written": [...], "state_updates": {...}, "next_modules": [...], "notes": "..."}}
+      ```
+      
+      Also add a frontmatter field: `routable: false` (these are not active in v1).
+      
+      Fix all three files. Output them separated by "===FILE: {path}===" markers.
+    provider: xai
+    model: grok-4-1-fast-reasoning
+    read_files:
+      - ~/repos/sub-agent-trees/output/open-plan/modules/data/importing.md
+      - ~/repos/sub-agent-trees/output/open-plan/modules/plan/account-strategy.md
+      - ~/repos/sub-agent-trees/output/open-plan/modules/plan/education.md
+    output_file: placeholder-fixes.md
+
+  # Final verification
+  - id: verify
+    prompt: |
+      You are verifying that all 5 review fixes have been applied correctly.
+      
+      Check:
+      1. Does limits.json exist with 2024/2025/2026 tax years and all required fields?
+      2. Do retirement-accounts, benefits, savings-waterfall, and income modules reference limits.json instead of hardcoded values?
+      3. Does tax-leaks have explicit 110% safe-harbor rule with required inputs?
+      4. Does the router exclude importing, account-strategy, and education from active routes?
+      5. Does the router enforce prerequisites before loading modules?
+      6. Do placeholder modules use the canonical completion signal format?
+      
+      For each check: PASS or FAIL with details.
+      
+      End with: "ALL FIXES VERIFIED" or list remaining issues.
+    provider: google
+    model: gemini-3-pro-preview
+    depends_on: [limits-json, update-retirement, update-benefits, update-waterfall, update-income, fix-tax-leaks, fix-router, fix-placeholders]
+    output_file: VERIFICATION-REPORT.md
+
+merge_prompt: |
+  Read the verification report. If all checks pass, output: "V1 READY TO SHIP — all review fixes applied and verified."
+  If any checks fail, list only the failures.
+merge_provider: openai
+merge_model: gpt-5.2
